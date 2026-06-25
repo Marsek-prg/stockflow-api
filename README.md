@@ -75,6 +75,16 @@ docker compose up --build
 
 The API is exposed on port `8000`, and PostgreSQL is exposed on port `5432`.
 
+## Smoke Test
+
+Run the main API flow against the containerized application:
+
+```bash
+docker compose up --build -d
+docker compose exec api alembic upgrade head
+python scripts/smoke_test.py
+```
+
 ## API Docs
 
 - Swagger UI: <http://127.0.0.1:8000/docs>
