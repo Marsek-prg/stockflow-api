@@ -77,6 +77,18 @@ ruff check .
 black --check .
 ```
 
+## Continuous Integration
+
+The project uses GitHub Actions to run automated checks on every push and pull
+request.
+
+The CI pipeline runs:
+
+- Ruff linting
+- Black formatting check
+- Pytest test suite
+- Docker image build
+
 ## Environment Variables
 
 | Variable | Default | Description |
