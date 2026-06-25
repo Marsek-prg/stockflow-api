@@ -86,6 +86,15 @@ The API is exposed on port `8000`, and PostgreSQL is exposed on port `5432`.
 - `POST /api/v1/stock/movements`
 - `GET /api/v1/stock/movements`
 
+### Orders
+
+- `POST /api/v1/orders`
+- `GET /api/v1/orders`
+- `GET /api/v1/orders/{order_id}`
+- `POST /api/v1/orders/{order_id}/reserve`
+- `POST /api/v1/orders/{order_id}/confirm`
+- `POST /api/v1/orders/{order_id}/cancel`
+
 Product and warehouse list endpoints support `limit` and `offset` pagination,
 case-insensitive search, and filtering by active status. Delete operations use
 soft delete by setting `is_active` to `false`.
@@ -96,6 +105,15 @@ Movements require active products and warehouses. Stock cannot become negative;
 an insufficient `OUT` movement returns HTTP 409. Stock item and movement list
 endpoints support `limit` and `offset` pagination plus product and warehouse
 filters. Movement lists can also be filtered by movement type.
+
+Orders are created as `DRAFT` with one or more items. Reserving an order checks
+available stock, calculated as the stock item quantity minus all active
+reservations. A successful reservation does not change physical stock.
+Confirming a `RESERVED` order creates `OUT` stock movements, reduces stock, and
+marks its reservations as consumed. Cancelling a `DRAFT` order cancels it
+directly; cancelling a `RESERVED` order releases its active reservations.
+Confirmed and cancelled orders cannot be changed. Order lists support `limit`
+and `offset` pagination and an optional `status` filter.
 
 ## Tests
 
