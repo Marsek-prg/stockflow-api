@@ -62,6 +62,28 @@ The API is exposed on port `8000`, and PostgreSQL is exposed on port `5432`.
 - Swagger UI: http://127.0.0.1:8000/docs
 - Health check: http://127.0.0.1:8000/api/v1/health
 
+## API Resources
+
+### Products
+
+- `POST /api/v1/products`
+- `GET /api/v1/products`
+- `GET /api/v1/products/{product_id}`
+- `PATCH /api/v1/products/{product_id}`
+- `DELETE /api/v1/products/{product_id}`
+
+### Warehouses
+
+- `POST /api/v1/warehouses`
+- `GET /api/v1/warehouses`
+- `GET /api/v1/warehouses/{warehouse_id}`
+- `PATCH /api/v1/warehouses/{warehouse_id}`
+- `DELETE /api/v1/warehouses/{warehouse_id}`
+
+Product and warehouse list endpoints support `limit` and `offset` pagination,
+case-insensitive search, and filtering by active status. Delete operations use
+soft delete by setting `is_active` to `false`.
+
 ## Tests
 
 Run the test suite:
