@@ -11,6 +11,7 @@ local infrastructure.
 
 - Python 3.12
 - FastAPI and Uvicorn
+- PyJWT and pwdlib
 - PostgreSQL 16
 - SQLAlchemy 2.0 and Alembic
 - Pydantic v2 and pydantic-settings
@@ -81,6 +82,29 @@ The API is exposed on port `8000`, and PostgreSQL is exposed on port `5432`.
 
 ## API Resources
 
+### Authentication
+
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `GET /api/v1/auth/me`
+
+Registration creates an active user with the `VIEWER` role. Login returns a
+short-lived JWT access token. Send the token to protected endpoints using:
+
+```http
+Authorization: Bearer <token>
+```
+
+### Users
+
+- `GET /api/v1/users`
+- `GET /api/v1/users/{user_id}`
+- `PATCH /api/v1/users/{user_id}`
+- `DELETE /api/v1/users/{user_id}`
+
+User management endpoints require the `ADMIN` role. Deleting a user performs a
+soft delete by setting `is_active` to `false`.
+
 ### Products
 
 - `POST /api/v1/products`
@@ -132,6 +156,19 @@ directly; cancelling a `RESERVED` order releases its active reservations.
 Confirmed and cancelled orders cannot be changed. Order lists support `limit`
 and `offset` pagination and an optional `status` filter.
 
+### Authorization
+
+- `ADMIN` can manage users and perform all inventory and order operations.
+- `MANAGER` can create and update products, warehouses, stock movements, and
+  orders, including order actions.
+- `VIEWER` can access public read endpoints and its own `/api/v1/auth/me`
+  endpoint.
+- Inactive users and requests with invalid or missing tokens cannot access
+  protected endpoints.
+
+Product, warehouse, stock, and order read endpoints remain public. Their write
+and action endpoints require either `ADMIN` or `MANAGER`.
+
 ## Tests
 
 Run all quality checks:
@@ -165,6 +202,9 @@ The CI pipeline runs:
 | `PROJECT_NAME` | `StockFlow API` | Application name shown in OpenAPI documentation. |
 | `API_V1_PREFIX` | `/api/v1` | URL prefix for version 1 endpoints. |
 | `DATABASE_URL` | `postgresql+psycopg://stockflow:stockflow@localhost:5432/stockflow` | SQLAlchemy PostgreSQL connection URL. |
+| `SECRET_KEY` | `change-this-secret-key-before-deployment` | Secret used to sign JWT access tokens. Override in every deployed environment. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | Access token lifetime in minutes. |
+| `ALGORITHM` | `HS256` | JWT signing algorithm. |
 
 Copy `.env.example` to `.env` to override local settings. Docker Compose supplies
 the service-network database URL automatically.

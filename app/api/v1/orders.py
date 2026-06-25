@@ -3,17 +3,20 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_roles
 from app.db.deps import get_db
 from app.models.order import OrderStatus
+from app.models.user import User, UserRole
 from app.schemas.order import OrderCreate, OrderListResponse, OrderRead
 from app.services import order_service
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 DbSession = Annotated[Session, Depends(get_db)]
+WriteUser = Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER))]
 
 
 @router.post("", response_model=OrderRead, status_code=status.HTTP_201_CREATED)
-def create_order(data: OrderCreate, db: DbSession) -> OrderRead:
+def create_order(data: OrderCreate, db: DbSession, _: WriteUser) -> OrderRead:
     return order_service.create_order(db, data)
 
 
@@ -39,15 +42,15 @@ def get_order(order_id: int, db: DbSession) -> OrderRead:
 
 
 @router.post("/{order_id}/reserve", response_model=OrderRead)
-def reserve_order(order_id: int, db: DbSession) -> OrderRead:
+def reserve_order(order_id: int, db: DbSession, _: WriteUser) -> OrderRead:
     return order_service.reserve_order(db, order_id)
 
 
 @router.post("/{order_id}/confirm", response_model=OrderRead)
-def confirm_order(order_id: int, db: DbSession) -> OrderRead:
+def confirm_order(order_id: int, db: DbSession, _: WriteUser) -> OrderRead:
     return order_service.confirm_order(db, order_id)
 
 
 @router.post("/{order_id}/cancel", response_model=OrderRead)
-def cancel_order(order_id: int, db: DbSession) -> OrderRead:
+def cancel_order(order_id: int, db: DbSession, _: WriteUser) -> OrderRead:
     return order_service.cancel_order(db, order_id)

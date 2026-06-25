@@ -3,8 +3,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_roles
 from app.db.deps import get_db
 from app.models.stock_movement import MovementType
+from app.models.user import User, UserRole
 from app.schemas.stock import (
     StockItemListResponse,
     StockMovementCreate,
@@ -15,6 +17,7 @@ from app.services import stock_service
 
 router = APIRouter(prefix="/stock", tags=["stock"])
 DbSession = Annotated[Session, Depends(get_db)]
+WriteUser = Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER))]
 
 
 @router.get("", response_model=StockItemListResponse)
@@ -41,7 +44,7 @@ def list_stock_items(
     status_code=status.HTTP_201_CREATED,
 )
 def create_stock_movement(
-    data: StockMovementCreate, db: DbSession
+    data: StockMovementCreate, db: DbSession, _: WriteUser
 ) -> StockMovementRead:
     return stock_service.create_stock_movement(db, data)
 

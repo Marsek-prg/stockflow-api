@@ -3,7 +3,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_roles
 from app.db.deps import get_db
+from app.models.user import User, UserRole
 from app.schemas.warehouse import (
     WarehouseCreate,
     WarehouseListResponse,
@@ -14,10 +16,13 @@ from app.services import warehouse_service
 
 router = APIRouter(prefix="/warehouses", tags=["warehouses"])
 DbSession = Annotated[Session, Depends(get_db)]
+WriteUser = Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER))]
 
 
 @router.post("", response_model=WarehouseRead, status_code=status.HTTP_201_CREATED)
-def create_warehouse(data: WarehouseCreate, db: DbSession) -> WarehouseRead:
+def create_warehouse(
+    data: WarehouseCreate, db: DbSession, _: WriteUser
+) -> WarehouseRead:
     return warehouse_service.create_warehouse(db, data)
 
 
@@ -42,12 +47,12 @@ def get_warehouse(warehouse_id: int, db: DbSession) -> WarehouseRead:
 
 @router.patch("/{warehouse_id}", response_model=WarehouseRead)
 def update_warehouse(
-    warehouse_id: int, data: WarehouseUpdate, db: DbSession
+    warehouse_id: int, data: WarehouseUpdate, db: DbSession, _: WriteUser
 ) -> WarehouseRead:
     return warehouse_service.update_warehouse(db, warehouse_id, data)
 
 
 @router.delete("/{warehouse_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_warehouse(warehouse_id: int, db: DbSession) -> Response:
+def delete_warehouse(warehouse_id: int, db: DbSession, _: WriteUser) -> Response:
     warehouse_service.deactivate_warehouse(db, warehouse_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

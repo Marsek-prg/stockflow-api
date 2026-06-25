@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = (
         "postgresql+psycopg://stockflow:stockflow@localhost:5432/stockflow"
     )
+    SECRET_KEY: str = "change-this-secret-key-before-deployment"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ALGORITHM: str = "HS256"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
