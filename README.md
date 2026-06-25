@@ -80,9 +80,22 @@ The API is exposed on port `8000`, and PostgreSQL is exposed on port `5432`.
 - `PATCH /api/v1/warehouses/{warehouse_id}`
 - `DELETE /api/v1/warehouses/{warehouse_id}`
 
+### Stock
+
+- `GET /api/v1/stock`
+- `POST /api/v1/stock/movements`
+- `GET /api/v1/stock/movements`
+
 Product and warehouse list endpoints support `limit` and `offset` pagination,
 case-insensitive search, and filtering by active status. Delete operations use
 soft delete by setting `is_active` to `false`.
+
+Stock movements support `IN`, `OUT`, and `ADJUSTMENT`. `IN` adds to the current
+balance, `OUT` subtracts from it, and `ADJUSTMENT` sets the exact balance.
+Movements require active products and warehouses. Stock cannot become negative;
+an insufficient `OUT` movement returns HTTP 409. Stock item and movement list
+endpoints support `limit` and `offset` pagination plus product and warehouse
+filters. Movement lists can also be filtered by movement type.
 
 ## Tests
 

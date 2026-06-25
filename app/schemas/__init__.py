@@ -6,6 +6,13 @@ from app.schemas.product import (
     ProductRead,
     ProductUpdate,
 )
+from app.schemas.stock import (
+    StockItemListResponse,
+    StockItemRead,
+    StockMovementCreate,
+    StockMovementListResponse,
+    StockMovementRead,
+)
 from app.schemas.warehouse import (
     WarehouseCreate,
     WarehouseListResponse,
@@ -18,6 +25,11 @@ __all__ = [
     "ProductListResponse",
     "ProductRead",
     "ProductUpdate",
+    "StockItemListResponse",
+    "StockItemRead",
+    "StockMovementCreate",
+    "StockMovementListResponse",
+    "StockMovementRead",
     "WarehouseCreate",
     "WarehouseListResponse",
     "WarehouseRead",
