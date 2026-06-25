@@ -1,5 +1,7 @@
 # StockFlow API
 
+[![CI](https://github.com/Marsek-prg/stockflow-api/actions/workflows/ci.yml/badge.svg)](https://github.com/Marsek-prg/stockflow-api/actions/workflows/ci.yml)
+
 StockFlow API is a REST API foundation for inventory, warehouse stock, and order
 management. It provides a versioned FastAPI application, PostgreSQL persistence
 configuration, database migration tooling, automated tests, and containerized
@@ -47,6 +49,21 @@ On Windows PowerShell, activate the environment with
 `.venv\\Scripts\\Activate.ps1` and copy the environment file with
 `Copy-Item .env.example .env`.
 
+## Developer Commands
+
+The Makefile provides the standard development workflow:
+
+| Command | Description |
+| --- | --- |
+| `make install` | Install the project with development dependencies. |
+| `make test` | Run the test suite. |
+| `make lint` | Run Ruff linting. |
+| `make format-check` | Check formatting with Black. |
+| `make format` | Format the codebase with Black. |
+| `make check` | Run linting, formatting checks, and tests. |
+| `make coverage` | Run tests with terminal coverage details. |
+| `make docker-build` | Build the Docker image. |
+
 ## Docker Setup
 
 Start the API and PostgreSQL services:
@@ -59,8 +76,8 @@ The API is exposed on port `8000`, and PostgreSQL is exposed on port `5432`.
 
 ## API Docs
 
-- Swagger UI: http://127.0.0.1:8000/docs
-- Health check: http://127.0.0.1:8000/api/v1/health
+- Swagger UI: <http://127.0.0.1:8000/docs>
+- Health check: <http://127.0.0.1:8000/api/v1/health>
 
 ## API Resources
 
@@ -117,17 +134,16 @@ and `offset` pagination and an optional `status` filter.
 
 ## Tests
 
-Run the test suite:
+Run all quality checks:
 
 ```bash
-pytest
+make check
 ```
 
-Run code-quality checks:
+Run tests with coverage details:
 
 ```bash
-ruff check .
-black --check .
+make coverage
 ```
 
 ## Continuous Integration
