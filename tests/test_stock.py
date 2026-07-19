@@ -41,6 +41,40 @@ def create_movement(
     return response.json()
 
 
+def create_order(
+    client: TestClient,
+    product_id: int,
+    warehouse_id: int,
+    *,
+    order_number: str = "ORD-001",
+    quantity: int = 1,
+) -> dict:
+    response = client.post(
+        "/api/v1/orders",
+        json={
+            "order_number": order_number,
+            "items": [
+                {
+                    "product_id": product_id,
+                    "warehouse_id": warehouse_id,
+                    "quantity": quantity,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def reserve_order(
+    client: TestClient, product_id: int, warehouse_id: int, **kwargs: object
+) -> dict:
+    order = create_order(client, product_id, warehouse_id, **kwargs)
+    response = client.post(f"/api/v1/orders/{order['id']}/reserve")
+    assert response.status_code == 200
+    return response.json()
+
+
 def test_in_creates_stock_item_and_movement(client: TestClient) -> None:
     product = create_product(client)
     warehouse = create_warehouse(client)
@@ -101,6 +135,147 @@ def test_out_with_insufficient_stock_returns_409(client: TestClient) -> None:
     assert client.get("/api/v1/stock/movements").json()["total"] == 1
 
 
+def test_out_can_consume_unreserved_stock_when_reservations_exist(
+    client: TestClient,
+) -> None:
+    product = create_product(client)
+    warehouse = create_warehouse(client)
+    create_movement(client, product["id"], warehouse["id"], "IN", 10)
+    reserve_order(client, product["id"], warehouse["id"], quantity=8)
+
+    movement = create_movement(client, product["id"], warehouse["id"], "OUT", 2)
+
+    assert movement["balance_after"] == 8
+
+
+def test_out_rejects_reserved_stock_without_changes(client: TestClient) -> None:
+    product = create_product(client)
+    warehouse = create_warehouse(client)
+    create_movement(client, product["id"], warehouse["id"], "IN", 10)
+    reserve_order(client, product["id"], warehouse["id"], quantity=8)
+
+    response = client.post(
+        "/api/v1/stock/movements",
+        json={
+            "product_id": product["id"],
+            "warehouse_id": warehouse["id"],
+            "movement_type": "OUT",
+            "quantity": 3,
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Insufficient available stock"
+    assert client.get("/api/v1/stock").json()["items"][0]["quantity"] == 10
+    assert client.get("/api/v1/stock/movements").json()["total"] == 1
+
+
+def test_adjustment_cannot_set_balance_below_active_reservations(
+    client: TestClient,
+) -> None:
+    product = create_product(client)
+    warehouse = create_warehouse(client)
+    create_movement(client, product["id"], warehouse["id"], "IN", 10)
+    reserve_order(client, product["id"], warehouse["id"], quantity=8)
+
+    response = client.post(
+        "/api/v1/stock/movements",
+        json={
+            "product_id": product["id"],
+            "warehouse_id": warehouse["id"],
+            "movement_type": "ADJUSTMENT",
+            "quantity": 7,
+        },
+    )
+
+    assert response.status_code == 409
+    assert "below active reservations" in response.json()["detail"]
+    assert client.get("/api/v1/stock").json()["items"][0]["quantity"] == 10
+    assert client.get("/api/v1/stock/movements").json()["total"] == 1
+
+
+def test_adjustment_can_equal_active_reservations(client: TestClient) -> None:
+    product = create_product(client)
+    warehouse = create_warehouse(client)
+    create_movement(client, product["id"], warehouse["id"], "IN", 10)
+    reserve_order(client, product["id"], warehouse["id"], quantity=8)
+
+    movement = create_movement(client, product["id"], warehouse["id"], "ADJUSTMENT", 8)
+
+    assert movement["balance_after"] == 8
+
+
+def test_in_is_allowed_when_active_reservations_exist(client: TestClient) -> None:
+    product = create_product(client)
+    warehouse = create_warehouse(client)
+    create_movement(client, product["id"], warehouse["id"], "IN", 10)
+    reserve_order(client, product["id"], warehouse["id"], quantity=8)
+
+    movement = create_movement(client, product["id"], warehouse["id"], "IN", 2)
+
+    assert movement["balance_after"] == 12
+
+
+def test_released_reservations_do_not_reduce_available_stock(
+    client: TestClient,
+) -> None:
+    product = create_product(client)
+    warehouse = create_warehouse(client)
+    create_movement(client, product["id"], warehouse["id"], "IN", 10)
+    order = reserve_order(client, product["id"], warehouse["id"], quantity=8)
+    assert client.post(f"/api/v1/orders/{order['id']}/cancel").status_code == 200
+
+    movement = create_movement(client, product["id"], warehouse["id"], "OUT", 10)
+
+    assert movement["balance_after"] == 0
+
+
+def test_consumed_reservations_do_not_reduce_available_stock(
+    client: TestClient,
+) -> None:
+    product = create_product(client)
+    warehouse = create_warehouse(client)
+    create_movement(client, product["id"], warehouse["id"], "IN", 10)
+    order = reserve_order(client, product["id"], warehouse["id"], quantity=8)
+    assert client.post(f"/api/v1/orders/{order['id']}/confirm").status_code == 200
+
+    movement = create_movement(client, product["id"], warehouse["id"], "OUT", 2)
+
+    assert movement["balance_after"] == 0
+
+
+def test_multiple_active_reservations_are_summed(client: TestClient) -> None:
+    product = create_product(client)
+    warehouse = create_warehouse(client)
+    create_movement(client, product["id"], warehouse["id"], "IN", 10)
+    reserve_order(
+        client,
+        product["id"],
+        warehouse["id"],
+        order_number="ORD-001",
+        quantity=3,
+    )
+    reserve_order(
+        client,
+        product["id"],
+        warehouse["id"],
+        order_number="ORD-002",
+        quantity=4,
+    )
+
+    response = client.post(
+        "/api/v1/stock/movements",
+        json={
+            "product_id": product["id"],
+            "warehouse_id": warehouse["id"],
+            "movement_type": "OUT",
+            "quantity": 4,
+        },
+    )
+
+    assert response.status_code == 409
+
+
 def test_out_without_existing_stock_returns_409_and_creates_no_stock_item(
     client: TestClient,
 ) -> None:
@@ -118,7 +293,7 @@ def test_out_without_existing_stock_returns_409_and_creates_no_stock_item(
     )
 
     assert response.status_code == 409
-    assert response.json()["detail"] == "Insufficient stock"
+    assert response.json()["detail"] == "Insufficient available stock"
     assert client.get("/api/v1/stock").json()["total"] == 0
     assert client.get("/api/v1/stock/movements").json()["total"] == 0
 

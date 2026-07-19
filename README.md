@@ -9,7 +9,7 @@ local infrastructure.
 
 ## Tech Stack
 
-- Python 3.12
+- Python 3.14
 - FastAPI and Uvicorn
 - PyJWT and pwdlib
 - PostgreSQL 16
@@ -151,9 +151,12 @@ case-insensitive search, and filtering by active status. Delete operations use
 soft delete by setting `is_active` to `false`.
 
 Stock movements support `IN`, `OUT`, and `ADJUSTMENT`. `IN` adds to the current
-balance, `OUT` subtracts from it, and `ADJUSTMENT` sets the exact balance.
-Movements require active products and warehouses. Stock cannot become negative;
-an insufficient `OUT` movement returns HTTP 409. Stock item and movement list
+physical balance, `OUT` subtracts from it, and `ADJUSTMENT` sets the exact
+physical balance. Available stock equals physical stock minus active
+reservations, so a manual `OUT` cannot consume reserved units and an
+`ADJUSTMENT` cannot set physical stock below active reservations. Movements
+require active products and warehouses. Stock cannot become negative; an
+insufficient available `OUT` movement returns HTTP 409. Stock item and movement list
 endpoints support `limit` and `offset` pagination plus product and warehouse
 filters. Movement lists can also be filtered by movement type.
 

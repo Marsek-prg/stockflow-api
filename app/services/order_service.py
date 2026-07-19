@@ -13,8 +13,11 @@ from app.models.stock_item import StockItem
 from app.models.stock_movement import MovementType, StockMovement
 from app.models.warehouse import Warehouse
 from app.schemas.order import OrderCreate
-
-StockKey = tuple[int, int]
+from app.services.stock_availability import (
+    StockKey,
+    calculate_available_quantity,
+    get_active_reserved_quantities,
+)
 
 
 def _order_options() -> tuple:
@@ -173,29 +176,16 @@ def reserve_order(db: Session, order_id: int) -> Order:
     keys = _stock_keys(order.items)
     stock_items = _lock_stock_items(db, keys)
 
-    active_rows = db.execute(
-        select(
-            Reservation.product_id,
-            Reservation.warehouse_id,
-            func.sum(Reservation.quantity),
-        )
-        .where(
-            tuple_(Reservation.product_id, Reservation.warehouse_id).in_(keys),
-            Reservation.status == ReservationStatus.ACTIVE,
-        )
-        .group_by(Reservation.product_id, Reservation.warehouse_id)
-    ).all()
-    active_quantities = {
-        (product_id, warehouse_id): quantity
-        for product_id, warehouse_id, quantity in active_rows
-    }
+    active_quantities = get_active_reserved_quantities(db, keys)
     requested_quantities: dict[StockKey, int] = defaultdict(int)
     for item in order.items:
         requested_quantities[(item.product_id, item.warehouse_id)] += item.quantity
 
     for key, requested in requested_quantities.items():
         stock_quantity = stock_items[key].quantity if key in stock_items else 0
-        available = stock_quantity - active_quantities.get(key, 0)
+        available = calculate_available_quantity(
+            stock_quantity, active_quantities.get(key, 0)
+        )
         if available < requested:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
