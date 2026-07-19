@@ -8,6 +8,10 @@ from app.models.stock_item import StockItem
 from app.models.stock_movement import MovementType, StockMovement
 from app.models.warehouse import Warehouse
 from app.schemas.stock import StockMovementCreate
+from app.services.stock_availability import (
+    calculate_available_quantity,
+    get_active_reserved_quantities,
+)
 
 
 def _require_active_product(db: Session, product_id: int) -> None:
@@ -54,7 +58,7 @@ def create_stock_movement(db: Session, data: StockMovementCreate) -> StockMoveme
         if data.movement_type == MovementType.OUT:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Insufficient stock",
+                detail="Insufficient available stock",
             )
         stock_item = StockItem(
             product_id=data.product_id,
@@ -67,14 +71,28 @@ def create_stock_movement(db: Session, data: StockMovementCreate) -> StockMoveme
     if data.movement_type == MovementType.IN:
         balance_after = balance_before + data.quantity
     elif data.movement_type == MovementType.OUT:
-        balance_after = balance_before - data.quantity
-        if balance_after < 0:
+        active_reserved_quantity = get_active_reserved_quantities(
+            db, {(data.product_id, data.warehouse_id)}
+        ).get((data.product_id, data.warehouse_id), 0)
+        available_quantity = calculate_available_quantity(
+            balance_before, active_reserved_quantity
+        )
+        if data.quantity > available_quantity:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Insufficient stock",
+                detail="Insufficient available stock",
             )
+        balance_after = balance_before - data.quantity
     else:
         balance_after = data.quantity
+        active_reserved_quantity = get_active_reserved_quantities(
+            db, {(data.product_id, data.warehouse_id)}
+        ).get((data.product_id, data.warehouse_id), 0)
+        if balance_after < active_reserved_quantity:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Stock adjustment cannot be below active reservations",
+            )
 
     stock_item.quantity = balance_after
     movement = StockMovement(
